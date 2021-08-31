@@ -1,0 +1,52 @@
+SELECT f.flight_id flight_id,                 /*id рейса*/
+       'Anapa' departure_city,                /*город вылета*/
+               ap.city arrival_city,          /*город прилета*/
+               a.model plane,                 /*модель самолета*/
+               0.0433 fuel_per_hour,          /*расход топлива(на Boeing) т/мин*/
+               count(t.ticket_no) passengers, /*количество пассажиров(по проданным билетам)*/
+               130 number_of_seats,           /*количество мест в салоне(на Boeing)*/
+               /*прибыль от продажи билетов  расходы на топливо в рублях: расход топлива(на Boeing) тонн в минуту, длительность рейса в минутах, отношение количества пассажиров к общему количеству мест, сборы аэропорта с человека сборы аэропорта с самолета (Москва-Шереметьево)*/
+               sum(tf.amount) - 0.0433*51000*(date_part('hour', f.scheduled_arrival-f.scheduled_departure)*60 + date_part('minute', f.scheduled_arrival-f.scheduled_departure))*count(t.ticket_no)/130 - 120*count(t.ticket_no) - 47000 AS profit,
+               date_part('isodow', f.scheduled_departure),           /*день недели*/
+               date_part('hour', f.scheduled_departure) day_hour     /*час отправления самолета*/
+FROM dst_project.tickets t
+JOIN dst_project.ticket_flights tf ON t.ticket_no = tf.ticket_no
+JOIN dst_project.flights f ON tf.flight_id = f.flight_id
+JOIN dst_project.airports ap ON f.arrival_airport = ap.airport_code
+JOIN dst_project.aircrafts a ON f.aircraft_code = a.aircraft_code
+WHERE f.departure_airport = 'AAQ'
+  AND f.arrival_airport = 'SVO' /*аэропорт прибытия - Шереметьево(самолет Boeing 737-300) */
+  AND (date_trunc('month', f.scheduled_departure) in ('2017-01-01',
+                                                      '2017-02-01',
+                                                      '2017-12-01'))
+  AND f.status not in ('Cancelled')
+GROUP BY f.flight_id,
+         ap.city,
+         a.model
+UNION 
+SELECT f.flight_id flight_id,                 /*id рейса*/
+       'Anapa' departure_city,                /*город вылета*/
+               ap.city arrival_city,          /*город прилета*/
+               a.model plane,                 /*модель самолета*/
+               0.0383 fuel_per_hour,          /*расход топлива(на Sukhoi) т/мин*/
+               count(t.ticket_no) passengers, /*количество пассажиров(по проданным билетам)*/
+               97 number_of_seats,            /*количество мест в салоне(на Sukhoi)*/
+               /*прибыль от продажи билетов  расходы на топливо в рублях: расход топлива(на Sukhoi) тонн в минуту, длительность рейса в минутах, отношение количества пассажиров к общему количеству мест, сборы аэропорта с человека, сборы аэропорта с самолета(Белгород)*/
+               sum(tf.amount) - 0.0383*51000*(date_part('hour', f.scheduled_arrival-f.scheduled_departure)*60 + date_part('minute', f.scheduled_arrival-f.scheduled_departure))*count(t.ticket_no)/97 - 230*count(t.ticket_no) - 100000 AS profit,
+               date_part('isodow', f.scheduled_departure),           /*день недели*/
+               date_part('hour', f.scheduled_departure) day_hour     /*час отправления самолета*/
+FROM dst_project.tickets t
+JOIN dst_project.ticket_flights tf ON t.ticket_no = tf.ticket_no
+JOIN dst_project.flights f ON tf.flight_id = f.flight_id
+JOIN dst_project.airports ap ON f.arrival_airport = ap.airport_code
+JOIN dst_project.aircrafts a ON f.aircraft_code = a.aircraft_code
+WHERE f.departure_airport = 'AAQ'
+  AND f.arrival_airport = 'EGO' /*аэропорт прибытия - Шереметьево(самолет SSJ-100) */
+  AND (date_trunc('month', f.scheduled_departure) in ('2017-01-01',
+                                                      '2017-02-01',
+                                                      '2017-12-01'))
+  AND f.status not in ('Cancelled')
+GROUP BY f.flight_id,
+         ap.city,
+         a.model
+ORDER BY profit
